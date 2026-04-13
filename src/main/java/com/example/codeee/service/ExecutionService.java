@@ -11,6 +11,9 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class ExecutionService {
 
+    // ✅ FULL DOCKER PATH (IMPORTANT)
+    private static final String DOCKER = "C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe";
+
     public String runCode(String language, String code, String input) {
 
         String folderName = System.getProperty("java.io.tmpdir") + "code-" + UUID.randomUUID();
@@ -30,7 +33,7 @@ public class ExecutionService {
 
                 case "python":
                     pb = new ProcessBuilder(
-                            "docker", "run", "--rm", "-i",
+                            DOCKER, "run", "--rm", "-i",
                             "-v", dockerPath + ":/app",
                             "python:3.9",
                             "python", "/app/script.py"
@@ -39,7 +42,7 @@ public class ExecutionService {
 
                 case "java":
                     pb = new ProcessBuilder(
-                            "docker", "run", "--rm", "-i",
+                            DOCKER, "run", "--rm", "-i",
                             "-v", dockerPath + ":/app",
                             "eclipse-temurin:17",
                             "sh", "-c",
@@ -49,7 +52,7 @@ public class ExecutionService {
 
                 case "c":
                     pb = new ProcessBuilder(
-                            "docker", "run", "--rm", "-i",
+                            DOCKER, "run", "--rm", "-i",
                             "-v", dockerPath + ":/app",
                             "gcc:latest",
                             "sh", "-c",
@@ -59,7 +62,7 @@ public class ExecutionService {
 
                 case "cpp":
                     pb = new ProcessBuilder(
-                            "docker", "run", "--rm", "-i",
+                            DOCKER, "run", "--rm", "-i",
                             "-v", dockerPath + ":/app",
                             "gcc:latest",
                             "sh", "-c",
@@ -69,7 +72,7 @@ public class ExecutionService {
 
                 case "js":
                     pb = new ProcessBuilder(
-                            "docker", "run", "--rm", "-i",
+                            DOCKER, "run", "--rm", "-i",
                             "-v", dockerPath + ":/app",
                             "node:18",
                             "node", "/app/script.js"
@@ -82,7 +85,7 @@ public class ExecutionService {
 
             Process process = pb.start();
 
-            // ✅ 🔥 SEND INPUT DIRECTLY (KEY FIX)
+            // ✅ SEND INPUT
             if (input != null && !input.isEmpty()) {
                 BufferedWriter writer = new BufferedWriter(
                         new OutputStreamWriter(process.getOutputStream())
@@ -95,7 +98,7 @@ public class ExecutionService {
             boolean finished = process.waitFor(10, TimeUnit.SECONDS);
             if (!finished) {
                 process.destroyForcibly();
-                return "Error: Execution Timed Out";
+                return "Error: Timeout";
             }
 
             BufferedReader output = new BufferedReader(
