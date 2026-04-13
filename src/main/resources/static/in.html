@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CodeExec Pro</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs/loader.min.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: "Segoe UI", sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 20px;
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+        }
+
+        .title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #58a6ff;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        select, button {
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: none;
+        }
+
+        select {
+            background: #21262d;
+            color: white;
+        }
+
+        button {
+            background: #238636;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #2ea043;
+        }
+
+        #container {
+            display: flex;
+            height: calc(100vh - 50px);
+        }
+
+        #editor {
+            flex: 2;
+        }
+
+        #right {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid #30363d;
+        }
+
+        textarea {
+            background: #010409;
+            color: #58a6ff;
+            border: none;
+            padding: 10px;
+            resize: none;
+            font-family: monospace;
+        }
+
+        #input {
+            height: 30%;
+            border-bottom: 1px solid #30363d;
+        }
+
+        #output {
+            flex: 1;
+            color: #3fb950;
+        }
+
+        /* LOGIN */
+        .login-box {
+            position: absolute;
+            top: 60px;
+            right: 20px;
+            background: #161b22;
+            padding: 15px;
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+        }
+
+        .login-box input {
+            padding: 8px;
+            border: none;
+            border-radius: 5px;
+            background: #0d1117;
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <div class="title">🚀 CodeExec Pro</div>
+
+    <div class="controls">
+        <select id="lang">
+            <option value="java">Java</option>
+            <option value="python">Python</option>
+            <option value="cpp">C++</option>
+            <option value="c">C</option>
+            <option value="js">JavaScript</option>
+        </select>
+
+        <button onclick="runCode()">▶ Run</button>
+        <button onclick="downloadCode()">⬇ Download</button>
+        <button onclick="shareCode()">🔗 Share</button>
+
+        <button id="loginBtn" onclick="toggleLogin()">Login</button>
+    </div>
+</header>
+
+<div id="loginBox" class="login-box">
+    <input type="text" id="username" placeholder="Username">
+    <input type="password" id="password" placeholder="Password">
+    <button onclick="login()">Submit</button>
+</div>
+
+<div id="container">
+    <div id="editor"></div>
+
+    <div id="right">
+        <textarea id="input" placeholder="Enter input..."></textarea>
+        <textarea id="output" readonly placeholder="Output..."></textarea>
+    </div>
+</div>
+
+<script>
+    let editor;
+
+    require.config({
+        paths: { vs: "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs" }
+    });
+
+    require(["vs/editor/editor.main"], function () {
+        editor = monaco.editor.create(document.getElementById("editor"), {
+            value: getTemplate("java"),
+            language: "java",
+            theme: "vs-dark",
+            automaticLayout: true
+        });
+    });
+
+    function getTemplate(lang) {
+        switch (lang) {
+            case "java":
+                return `public class Main {
+    public static void main(String[] args) {
+        System.out.println("Hello");
+    }
+}`;
+            case "python":
+                return `a=int(input())
+b=int(input())
+print(a+b)`;
+            case "cpp":
+                return `#include <iostream>
+using namespace std;
+int main(){
+ int a,b;
+ cin>>a>>b;
+ cout<<a+b;
+}`;
+            case "c":
+                return `#include <stdio.h>
+int main(){
+ int a,b;
+ scanf("%d %d",&a,&b);
+ printf("%d",a+b);
+}`;
+            case "js":
+                return `const fs=require("fs");
+const input=fs.readFileSync(0,"utf-8").trim().split("\\n");
+let a=parseInt(input[0]);
+let b=parseInt(input[1]);
+console.log(a+b);`;
+        }
+    }
+
+    document.getElementById("lang").addEventListener("change", function () {
+        const lang = this.value;
+        const map = { java:"java", python:"python", cpp:"cpp", c:"c", js:"javascript" };
+        editor.setValue(getTemplate(lang));
+        monaco.editor.setModelLanguage(editor.getModel(), map[lang]);
+    });
+
+    async function runCode() {
+        const user = localStorage.getItem("user");
+
+        if (!user) {
+            alert("⚠ Please login first");
+            return;
+        }
+
+        document.getElementById("output").value = "Running...";
+
+        const res = await fetch("/execute", {
+            method: "POST",
+            headers: {"Content-Type":"application/json"},
+            body: JSON.stringify({
+                code: editor.getValue(),
+                input: document.getElementById("input").value,
+                language: document.getElementById("lang").value
+            })
+        });
+
+        document.getElementById("output").value = await res.text();
+    }
+
+    function downloadCode() {
+        const code = editor.getValue();
+        const lang = document.getElementById("lang").value;
+        const ext = {java:"java",python:"py",cpp:"cpp",c:"c",js:"js"};
+
+        const blob = new Blob([code]);
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "code."+ext[lang];
+        a.click();
+    }
+
+    function shareCode() {
+        const data = {
+            code: editor.getValue(),
+            input: document.getElementById("input").value,
+            language: document.getElementById("lang").value
+        };
+
+        const link = location.origin+"?data="+btoa(JSON.stringify(data));
+        navigator.clipboard.writeText(link);
+        alert("Link copied!");
+    }
+
+    function toggleLogin() {
+        const box = document.getElementById("loginBox");
+        box.style.display = box.style.display==="flex"?"none":"flex";
+    }
+
+    async function login() {
+        const username = document.getElementById("username").value;
+        const password = document.getElementById("password").value;
+
+        const res = await fetch("/auth/login", {
+            method: "POST",
+            headers: {"Content-Type":"application/json"},
+            body: JSON.stringify({ username, password })
+        });
+
+        const text = await res.text();
+
+        if (text.includes("Successful")) {
+            localStorage.setItem("user", username);
+            document.getElementById("loginBtn").innerText = username;
+            document.getElementById("loginBox").style.display = "none";
+        } else {
+            alert("Invalid login");
+        }
+    }
+
+    window.onload = () => {
+        const user = localStorage.getItem("user");
+        if (user) {
+            document.getElementById("loginBtn").innerText = user;
+        }
+    };
+</script>
+
+</body>
+</html>
