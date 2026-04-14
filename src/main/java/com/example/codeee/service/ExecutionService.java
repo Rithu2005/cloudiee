@@ -3,81 +3,221 @@ package com.example.codeee.service;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.UUID;
+import java.nio.file.*;
 import java.util.concurrent.TimeUnit;
 
 @Service
 public class ExecutionService {
 
-    // ✅ FULL DOCKER PATH (IMPORTANT)
-    private static final String DOCKER = "C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe";
-
     public String runCode(String language, String code, String input) {
 
-        String folderName = System.getProperty("java.io.tmpdir") + "code-" + UUID.randomUUID();
+        // ✅ ALWAYS use container path (NOT Windows path)
+        String folderName = "/workspace/code-exec";
 
         try {
-            Files.createDirectories(Path.of(folderName));
+            Path dir = Path.of(folderName);
 
-            String dockerPath = folderName.replace("\\", "/");
+            // 🔥 delete old files
+            if (Files.exists(dir)) {
+                Files.walk(dir)
+                        .map(Path::toFile)
+                        .sorted((a, b) -> -a.compareTo(b))
+                        .forEach(File::delete);
+            }
 
-            // ✅ Write code file
+            // ✅ create folder
+            Files.createDirectories(dir);
+
+            // ✅ write code file
             String fileName = getFileName(language);
-            Files.writeString(Path.of(folderName, fileName), code);
+            Path filePath = Path.of(folderName, fileName);
+            Files.writeString(filePath, code);
+
+            // ✅ DEBUG (IMPORTANT)
+            System.out.println("File created: " + filePath);
 
             ProcessBuilder pb;
 
             switch (language) {
 
                 case "python":
-                    pb = new ProcessBuilder(
-                            DOCKER, "run", "--rm", "-i",
-                            "-v", dockerPath + ":/app",
+
+                    String pyContainer = "py-run-" + System.currentTimeMillis();
+
+                    // 1️⃣ Create container
+                    new ProcessBuilder(
+                            "docker", "run", "-d",
+                            "--name", pyContainer,
                             "python:3.9",
-                            "python", "/app/script.py"
+                            "sleep", "10"
+                    ).start().waitFor();
+
+                    // 2️⃣ Copy file into container
+                    new ProcessBuilder(
+                            "docker", "cp",
+                            folderName + "/script.py",
+                            pyContainer + ":/script.py"
+                    ).start().waitFor();
+
+                    // 3️⃣ Execute Python
+                    pb = new ProcessBuilder(
+                            "docker", "exec", "-i",
+                            pyContainer,
+                            "python", "/script.py"
                     );
+
+                    // 4️⃣ CLEANUP after execution (IMPORTANT)
+                    new Thread(() -> {
+                        try {
+                            Thread.sleep(5000);
+                            new ProcessBuilder("docker", "rm", "-f", pyContainer).start();
+                        } catch (Exception ignored) {}
+                    }).start();
+
                     break;
+
 
                 case "java":
+
+                    // 1. Create container
+                    String containerName = "java-run-" + System.currentTimeMillis();
+
+                    new ProcessBuilder("docker", "run", "-d", "--name", containerName, "eclipse-temurin:17", "sleep", "5").start().waitFor();
+
+                    // 2. Copy file into container
+                    new ProcessBuilder("docker", "cp",
+                            folderName + "/Main.java",
+                            containerName + ":/Main.java"
+                    ).start().waitFor();
+
+                    // 3. Execute code
                     pb = new ProcessBuilder(
-                            DOCKER, "run", "--rm", "-i",
-                            "-v", dockerPath + ":/app",
-                            "eclipse-temurin:17",
+                            "docker", "exec", containerName,
                             "sh", "-c",
-                            "javac /app/Main.java && java -cp /app Main"
+                            "javac /Main.java && java -cp / Main"
                     );
+
                     break;
+
 
                 case "c":
-                    pb = new ProcessBuilder(
-                            DOCKER, "run", "--rm", "-i",
-                            "-v", dockerPath + ":/app",
+
+                    String cContainer = "c-run-" + System.currentTimeMillis() + "-" + Math.random();
+
+                    // 🔥 Remove if exists
+                    new ProcessBuilder("docker", "rm", "-f", cContainer)
+                            .start().waitFor();
+
+                    // 1️⃣ Create container
+                    new ProcessBuilder("docker", "run", "-d",
+                            "--name", cContainer,
                             "gcc:latest",
+                            "sleep", "10")
+                            .start().waitFor();
+
+                    // 2️⃣ Copy file
+                    new ProcessBuilder("docker", "cp",
+                            folderName + "/main.c",
+                            cContainer + ":/main.c")
+                            .start().waitFor();
+
+                    // 3️⃣ Execute
+                    pb = new ProcessBuilder(
+                            "docker", "exec", "-i",
+                            cContainer,
                             "sh", "-c",
-                            "gcc /app/main.c -o /app/main && /app/main"
+                            "gcc /main.c -o /main && /main"
                     );
+
+                    // 4️⃣ Cleanup
+                    new Thread(() -> {
+                        try {
+                            Thread.sleep(5000);
+                            new ProcessBuilder("docker", "rm", "-f", cContainer).start();
+                        } catch (Exception ignored) {}
+                    }).start();
+
                     break;
+
 
                 case "cpp":
-                    pb = new ProcessBuilder(
-                            DOCKER, "run", "--rm", "-i",
-                            "-v", dockerPath + ":/app",
+
+                    String cppContainer = "cpp-run-" + System.currentTimeMillis() + "-" + Math.random();
+
+                    // 🔥 Remove if exists
+                    new ProcessBuilder("docker", "rm", "-f", cppContainer)
+                            .start().waitFor();
+
+                    // 1️⃣ Create container
+                    new ProcessBuilder("docker", "run", "-d",
+                            "--name", cppContainer,
                             "gcc:latest",
+                            "sleep", "10")
+                            .start().waitFor();
+
+                    // 2️⃣ Copy file
+                    new ProcessBuilder("docker", "cp",
+                            folderName + "/main.cpp",
+                            cppContainer + ":/main.cpp")
+                            .start().waitFor();
+
+                    // 3️⃣ Execute
+                    pb = new ProcessBuilder(
+                            "docker", "exec", "-i",
+                            cppContainer,
                             "sh", "-c",
-                            "g++ /app/main.cpp -o /app/main && /app/main"
+                            "g++ /main.cpp -o /main && /main"
                     );
+
+
+                    new Thread(() -> {
+                        try {
+                            Thread.sleep(5000);
+                            new ProcessBuilder("docker", "rm", "-f", cppContainer).start();
+                        } catch (Exception ignored) {}
+                    }).start();
+
                     break;
 
+
                 case "js":
-                    pb = new ProcessBuilder(
-                            DOCKER, "run", "--rm", "-i",
-                            "-v", dockerPath + ":/app",
+
+                    String jsContainer = "js-run-" + System.currentTimeMillis() + "-" + Math.random();
+
+                    // 🔥 Remove if exists
+                    new ProcessBuilder("docker", "rm", "-f", jsContainer)
+                            .start().waitFor();
+
+                    // 1️⃣ Create container
+                    new ProcessBuilder("docker", "run", "-d",
+                            "--name", jsContainer,
                             "node:18",
-                            "node", "/app/script.js"
+                            "sleep", "10")
+                            .start().waitFor();
+
+                    // 2️⃣ Copy file
+                    new ProcessBuilder("docker", "cp",
+                            folderName + "/script.js",
+                            jsContainer + ":/script.js")
+                            .start().waitFor();
+
+                    // 3️⃣ Execute
+                    pb = new ProcessBuilder(
+                            "docker", "exec", "-i",
+                            jsContainer,
+                            "node", "/script.js"
                     );
+
+                    // 4️⃣ Cleanup
+                    new Thread(() -> {
+                        try {
+                            Thread.sleep(5000);
+                            new ProcessBuilder("docker", "rm", "-f", jsContainer).start();
+                        } catch (Exception ignored) {}
+                    }).start();
+
                     break;
+
 
                 default:
                     return "Unsupported language";
@@ -85,17 +225,17 @@ public class ExecutionService {
 
             Process process = pb.start();
 
-            // ✅ SEND INPUT
+            // ✅ FIX INPUT (IMPORTANT)
             if (input != null && !input.isEmpty()) {
                 BufferedWriter writer = new BufferedWriter(
                         new OutputStreamWriter(process.getOutputStream())
                 );
-                writer.write(input);
+                writer.write(input + "\n");  // 🔥 FIXED
                 writer.flush();
                 writer.close();
             }
 
-            boolean finished = process.waitFor(10, TimeUnit.SECONDS);
+            boolean finished = process.waitFor(15, TimeUnit.SECONDS);
             if (!finished) {
                 process.destroyForcibly();
                 return "Error: Timeout";
@@ -120,8 +260,6 @@ public class ExecutionService {
                 result.append(line).append("\n");
             }
 
-            deleteFolder(new File(folderName));
-
             return result.toString();
 
         } catch (Exception e) {
@@ -138,17 +276,5 @@ public class ExecutionService {
             case "js": return "script.js";
             default: return "file.txt";
         }
-    }
-
-    private void deleteFolder(File folder) {
-        if (folder.isDirectory()) {
-            File[] files = folder.listFiles();
-            if (files != null) {
-                for (File file : files) {
-                    deleteFolder(file);
-                }
-            }
-        }
-        folder.delete();
     }
 }
