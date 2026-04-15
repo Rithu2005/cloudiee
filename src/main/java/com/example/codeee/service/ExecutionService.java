@@ -20,7 +20,6 @@ public class ExecutionService {
 
             switch (language.toLowerCase()) {
 
-                // 🐍 PYTHON
                 case "python":
                     filePath = folder + "/script.py";
                     Files.writeString(Path.of(filePath), code);
@@ -28,7 +27,6 @@ public class ExecutionService {
                     command = "docker run --rm -i -v " + folder + ":/app -w /app python:3.10-slim python script.py";
                     break;
 
-                // ☕ JAVA
                 case "java":
                     filePath = folder + "/Main.java";
                     Files.writeString(Path.of(filePath), code);
@@ -36,7 +34,6 @@ public class ExecutionService {
                     command = "docker run --rm -i -v " + folder + ":/app -w /app eclipse-temurin:17-jdk-alpine sh -c \"javac Main.java && java Main\"";
                     break;
 
-                // 🔵 C
                 case "c":
                     filePath = folder + "/main.c";
                     Files.writeString(Path.of(filePath), code);
@@ -44,7 +41,6 @@ public class ExecutionService {
                     command = "docker run --rm -i -v " + folder + ":/app -w /app alpine sh -c \"apk add --no-cache gcc && gcc main.c -o main && ./main\"";
                     break;
 
-                // 🔷 C++
                 case "cpp":
                     filePath = folder + "/main.cpp";
                     Files.writeString(Path.of(filePath), code);
@@ -52,7 +48,6 @@ public class ExecutionService {
                     command = "docker run --rm -i -v " + folder + ":/app -w /app alpine sh -c \"apk add --no-cache g++ && g++ main.cpp -o main && ./main\"";
                     break;
 
-                // 🟨 JAVASCRIPT
                 case "js":
                     filePath = folder + "/script.js";
                     Files.writeString(Path.of(filePath), code);
@@ -64,7 +59,9 @@ public class ExecutionService {
                     return "Unsupported language";
             }
 
-            // ✅ RUN COMMAND
+            // ✅ DEBUG LOG (IMPORTANT)
+            System.out.println("File created at: " + filePath);
+
             ProcessBuilder pb = new ProcessBuilder("sh", "-c", command);
             pb.redirectErrorStream(true);
 
@@ -81,7 +78,6 @@ public class ExecutionService {
                 writer.close();
             }
 
-            // ✅ READ OUTPUT
             BufferedReader reader = new BufferedReader(
                     new InputStreamReader(process.getInputStream())
             );
