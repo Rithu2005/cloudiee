@@ -11,7 +11,7 @@ public class ExecutionService {
     public String runCode(String language, String code, String input) {
 
         try {
-            // ✅ FIXED PATH (VERY IMPORTANT)
+            // ✅ FIXED FOLDER
             String folder = "/home/ubuntu/code";
             Files.createDirectories(Path.of(folder));
 
@@ -38,14 +38,14 @@ public class ExecutionService {
                     filePath = folder + "/main.c";
                     Files.writeString(Path.of(filePath), code);
 
-                    command = "docker run --rm -i -v " + folder + ":/app -w /app alpine sh -c \"apk add --no-cache gcc && gcc main.c -o main && ./main\"";
+                    command = "docker run --rm -i -v " + folder + ":/app -w /app alpine sh -c \"apk add --no-cache build-base > /dev/null && gcc main.c -o main && ./main\"";
                     break;
 
                 case "cpp":
                     filePath = folder + "/main.cpp";
                     Files.writeString(Path.of(filePath), code);
 
-                    command = "docker run --rm -i -v " + folder + ":/app -w /app alpine sh -c \"apk add --no-cache g++ && g++ main.cpp -o main && ./main\"";
+                    command = "docker run --rm -i -v " + folder + ":/app -w /app alpine sh -c \"apk add --no-cache build-base > /dev/null && g++ main.cpp -o main && ./main\"";
                     break;
 
                 case "js":
@@ -59,15 +59,20 @@ public class ExecutionService {
                     return "Unsupported language";
             }
 
-            // ✅ DEBUG LOG (IMPORTANT)
+            // ✅ DEBUG (VERY IMPORTANT)
             System.out.println("File created at: " + filePath);
+
+            // 🔥 CHECK FILE EXISTS BEFORE RUNNING
+            if (!Files.exists(Path.of(filePath))) {
+                return "ERROR: File not created properly!";
+            }
 
             ProcessBuilder pb = new ProcessBuilder("sh", "-c", command);
             pb.redirectErrorStream(true);
 
             Process process = pb.start();
 
-            // ✅ HANDLE INPUT
+            // ✅ INPUT
             if (input != null && !input.isEmpty()) {
                 BufferedWriter writer = new BufferedWriter(
                         new OutputStreamWriter(process.getOutputStream())
@@ -78,6 +83,7 @@ public class ExecutionService {
                 writer.close();
             }
 
+            // ✅ OUTPUT
             BufferedReader reader = new BufferedReader(
                     new InputStreamReader(process.getInputStream())
             );
