@@ -11,7 +11,8 @@ public class ExecutionService {
     public String runCode(String language, String code, String input) {
 
         try {
-            String folder = System.getProperty("user.home") + "/code";
+            // ✅ FIXED PATH (VERY IMPORTANT)
+            String folder = "/home/ubuntu/code";
             Files.createDirectories(Path.of(folder));
 
             String filePath = "";
