@@ -11,7 +11,7 @@ public class ExecutionService {
     public String runCode(String language, String code, String input) {
 
         try {
-            String folder = "/app/code";   // ✅ shared folder
+            String folder = System.getProperty("user.home") + "/code";
             Files.createDirectories(Path.of(folder));
 
             String filePath = "";
