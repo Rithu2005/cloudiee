@@ -11,50 +11,52 @@ public class ExecutionService {
     public String runCode(String language, String code, String input) {
 
         try {
+            String folder = "/app/code";   // ✅ shared folder
+            Files.createDirectories(Path.of(folder));
+
             String filePath = "";
             String command = "";
 
-            // ✅ HANDLE ALL LANGUAGES
             switch (language.toLowerCase()) {
 
                 // 🐍 PYTHON
                 case "python":
-                    filePath = "/tmp/script.py";
+                    filePath = folder + "/script.py";
                     Files.writeString(Path.of(filePath), code);
 
-                    command = "docker run --rm -i -v /tmp:/app -w /app python:3.10-slim python script.py";
+                    command = "docker run --rm -i -v " + folder + ":/app -w /app python:3.10-slim python script.py";
                     break;
 
                 // ☕ JAVA
                 case "java":
-                    filePath = "/tmp/Main.java";
+                    filePath = folder + "/Main.java";
                     Files.writeString(Path.of(filePath), code);
 
-                    command = "docker run --rm -i -v /tmp:/app -w /app eclipse-temurin:17-jdk-alpine sh -c \"javac Main.java && java Main\"";
+                    command = "docker run --rm -i -v " + folder + ":/app -w /app eclipse-temurin:17-jdk-alpine sh -c \"javac Main.java && java Main\"";
                     break;
 
                 // 🔵 C
                 case "c":
-                    filePath = "/tmp/main.c";
+                    filePath = folder + "/main.c";
                     Files.writeString(Path.of(filePath), code);
 
-                    command = "docker run --rm -i -v /tmp:/app -w /app alpine sh -c \"apk add --no-cache gcc && gcc main.c -o main && ./main\"";
+                    command = "docker run --rm -i -v " + folder + ":/app -w /app alpine sh -c \"apk add --no-cache gcc && gcc main.c -o main && ./main\"";
                     break;
 
                 // 🔷 C++
                 case "cpp":
-                    filePath = "/tmp/main.cpp";
+                    filePath = folder + "/main.cpp";
                     Files.writeString(Path.of(filePath), code);
 
-                    command = "docker run --rm -i -v /tmp:/app -w /app alpine sh -c \"apk add --no-cache g++ && g++ main.cpp -o main && ./main\"";
+                    command = "docker run --rm -i -v " + folder + ":/app -w /app alpine sh -c \"apk add --no-cache g++ && g++ main.cpp -o main && ./main\"";
                     break;
 
                 // 🟨 JAVASCRIPT
                 case "js":
-                    filePath = "/tmp/script.js";
+                    filePath = folder + "/script.js";
                     Files.writeString(Path.of(filePath), code);
 
-                    command = "docker run --rm -i -v /tmp:/app -w /app node:18-alpine node script.js";
+                    command = "docker run --rm -i -v " + folder + ":/app -w /app node:18-alpine node script.js";
                     break;
 
                 default:
